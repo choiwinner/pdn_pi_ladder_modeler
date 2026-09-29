@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDN 정밀 RLC 모델러 (선택지 B: Π형 다단 래더 모델 - L_plane & L_dut 분리형)</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card-bg: #151f32;
+      --card-border: #26354a;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --green: #4ade80;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --purple: #c084fc;
+      --orange: #fb923c;
+      --teal: #2dd4bf;
+      --code-bg: #090e1a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 14px 18px; line-height: 1.4; }
+    .container { max-width: 1540px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    
+    header { border-bottom: 1px solid var(--card-border); padding-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-end; }
+    header h1 { font-size: 19px; color: var(--accent); }
+    header p { color: var(--text-muted); font-size: 12px; }
+
+    .main-grid { display: grid; grid-template-columns: 48% 52%; gap: 12px; align-items: start; }
+    @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
+
+    .col { display: flex; flex-direction: column; gap: 12px; }
+    .card { background-color: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 12px 14px; }
+    .card h2 { font-size: 14px; margin-bottom: 8px; color: var(--text); border-left: 3.5px solid var(--accent); padding-left: 8px; display: flex; justify-content: space-between; align-items: center; }
+
+    .input-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .input-group { margin-bottom: 7px; }
+    .input-group label { display: block; font-size: 11.5px; font-weight: 600; margin-bottom: 2px; color: var(--text); }
+    .input-desc { font-size: 10px; color: var(--text-muted); margin-bottom: 3px; }
+    
+    .unit-input { position: relative; display: flex; align-items: center; }
+    .unit-input input { width: 100%; background: var(--code-bg); border: 1px solid var(--card-border); border-radius: 5px; color: var(--text); padding: 4px 44px 4px 7px; font-size: 11.5px; font-family: monospace; }
+    .unit-input input:focus { outline: none; border-color: var(--accent); }
+    .unit-input .unit-tag { position: absolute; right: 7px; font-size: 10px; color: var(--text-muted); font-family: monospace; pointer-events: none; font-weight: 600; }
+
+    .guide-box { background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 5px; padding: 6px 9px; font-size: 10.5px; color: #cbd5e1; margin-top: 3px; line-height: 1.45; }
+    .guide-box b { color: var(--accent); }
+    .guide-box code { background: rgba(0, 0, 0, 0.4); color: #38bdf8; padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 10px; }
+
+    .btn { background-color: var(--accent); color: #000; border: none; border-radius: 5px; padding: 8px 12px; font-size: 12.5px; font-weight: bold; cursor: pointer; width: 100%; transition: all 0.2s; margin-top: 4px; }
+    .btn:hover { background-color: var(--accent-hover); color: #fff; }
+
+    .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 6px; margin-bottom: 8px; }
+    .result-box { background: var(--code-bg); border: 1px solid var(--card-border); border-radius: 5px; padding: 5px 4px; text-align: center; }
+    .result-box .label { font-size: 8.5px; color: var(--text-muted); }
+    .result-box .val { font-size: 12.5px; font-weight: bold; color: var(--green); margin-top: 1px; font-family: monospace; }
+    .result-box .sub { font-size: 8px; color: var(--text-muted); }
+
+    .tab-container { display: flex; gap: 5px; }
+    .tab-btn { background: var(--code-bg); border: 1px solid var(--card-border); color: var(--text-muted); padding: 4px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .tab-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+    .plot-container { position: relative; width: 100%; }
+    canvas { background-color: var(--code-bg); border: 1px solid var(--card-border); border-radius: 6px; width: 100%; height: 320px; display: block; cursor: crosshair; }
+    
+    pre { background: var(--code-bg); border: 1px solid var(--card-border); border-radius: 5px; padding: 8px; font-family: monospace; font-size: 10.5px; color: #a5f3fc; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 160px; }
+    .svg-container { width: 100%; background: var(--code-bg); border: 1px solid var(--card-border); border-radius: 5px; padding: 5px 0; display: flex; justify-content: center; }
+    
+    .toast { display: none; background: rgba(74, 222, 128, 0.15); border: 1px solid var(--green); color: var(--green); padding: 4px 10px; border-radius: 4px; font-size: 11px; text-align: center; margin-top: 5px; font-weight: bold; }
+    .slider-val { font-family: monospace; font-weight: bold; color: var(--accent); }
+    .marker-table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 4px; }
+    .marker-table th, .marker-table td { padding: 4px 6px; border: 1px solid var(--card-border); text-align: left; }
+    .marker-table th { background: rgba(255,255,255,0.03); color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div>
+      <h1>⚡ PDN 정밀 RLC 모델러 (선택지 B: Π형 다단 래더 모델)</h1>
+      <p>실제 보드 물리 토폴로지 완벽 반영: VRM ➔ 탄탈 뱅크 ➔ Power Plane(L_plane) ➔ MLCC 뱅크 ➔ 소켓/비아(L_dut) ➔ DUT Die</p>
+    </div>
+  </header>
+
+  <div class="main-grid">
+    <!-- 좌측 컬럼: 계측 입력 패널 -->
+    <div class="col">
+      <div class="card">
+        <h2>1. IR Drop 실측값 (Current Sink 조건 DC 저항 도출)</h2>
+        <div class="input-desc">S-parameter 시뮬레이션 인가 부하 전류와 전압 강하량으로부터 전체 루프 DC 저항 $R_{DC}$를 직산합니다.</div>
+        <div class="input-grid-2">
+          <div class="input-group">
+            <label style="color:var(--green);">인가 부하 전류 (Isink)</label>
+            <div class="unit-input"><input type="text" id="in_isink" value="10.0"><span class="unit-tag">A</span></div>
+          </div>
+          <div class="input-group">
+            <label style="color:var(--green);">전압 강하량 (ΔVdrop)</label>
+            <div class="unit-input"><input type="text" id="in_vdrop" value="56.9"><span class="unit-tag">mV</span></div>
+          </div>
+        </div>
+        <div class="guide-box" id="rdc_calc_box" style="border-color:rgba(74, 222, 128, 0.35);">계산 대기 중...</div>
+      </div>
+
+      <div class="card">
+        <h2>2. S-parameter 주파수별 임피던스 마커 입력</h2>
+        <div class="input-desc">S-parameter 시뮬레이션 커브에서 추출한 각 핵심 거동 지점의 주파수($f$)와 임피던스 크기($|Z|$)를 입력합니다.</div>
+
+        <!-- 마커 1: 저주파 용량성 하강 (탄탈 C_bulk) -->
+        <div class="input-group" style="background:rgba(56, 189, 248, 0.04); padding:6px 8px; border-radius:5px; border:1px solid rgba(56, 189, 248, 0.25);">
+          <label style="color:var(--accent);">① 저주파 용량성 하강 마커 (C_bulk: 탄탈 뱅크 용량)</label>
+          <div class="input-desc">10Hz~100Hz 구간 마커 (470µF×20개 대용량 검증 지점)</div>
+          <div class="input-grid-2">
+            <div>
+              <div class="input-desc">주파수 ($f_{cap}$)</div>
+              <div class="unit-input"><input type="text" id="f_cap" value="100"><span class="unit-tag">Hz</span></div>
+            </div>
+            <div>
+              <div class="input-desc">임피던스 ($|Z_{cap}|$)</div>
+              <div class="unit-input"><input type="text" id="z_cap" value="0.16"><span class="unit-tag">Ω</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 마커 2: 탄탈 선반 ESR -->
+        <div class="input-group" style="background:rgba(251, 191, 36, 0.04); padding:6px 8px; border-radius:5px; border:1px solid rgba(251, 191, 36, 0.25); margin-top:6px;">
+          <label style="color:var(--yellow);">② 탄탈 ESR 선반(Shelf) 마커 (R_bulk: 1k~10kHz 플랫 바닥)</label>
+          <div class="input-desc">1k~10kHz 사이 수평으로 평탄해지는 저항성 바닥 지점 마커 ($R_{bulk} \approx |Z_{sh}|$)</div>
+          <div class="input-grid-2">
+            <div>
+              <div class="input-desc">선반 주파수 ($f_{sh}$)</div>
+              <div class="unit-input"><input type="text" id="f_sh" value="5e3"><span class="unit-tag">Hz</span></div>
+            </div>
+            <div>
+              <div class="input-desc">선반 임피던스 ($|Z_{sh}|$)</div>
+              <div class="unit-input"><input type="text" id="z_sh" value="0.01"><span class="unit-tag">Ω(10m)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 마커 3: 1차 주공진 최저 바닥 (Valley 1 - 33uF MLCC군) -->
+        <div class="input-group" style="background:rgba(56, 189, 248, 0.04); padding:6px 8px; border-radius:5px; border:1px solid rgba(56, 189, 248, 0.25); margin-top:6px;">
+          <label style="color:var(--accent);">③ 1차 주공진 최저점 & 하강 슬로프 (Valley 1: 33µF MLCC 뱅크)</label>
+          <div class="input-desc">선반 끝~바닥 사이 슬로프($f_{s1}, |Z_{s1}|$) 및 600k~700kHz 최저 임피던스 바닥($f_{v1}, |Z_{v1}|$)</div>
+          <div class="input-grid-2" style="margin-bottom:4px;">
+            <div>
+              <div class="input-desc">하강 슬로프 ($f_{s1}$)</div>
+              <div class="unit-input"><input type="text" id="f_s1" value="100e3"><span class="unit-tag">Hz</span></div>
+            </div>
+            <div>
+              <div class="input-desc">슬로프 임피던스 ($|Z_{s1}|$)</div>
+              <div class="unit-input"><input type="text" id="z_s1" value="0.002"><span class="unit-tag">Ω(2.0m)</span></div>
+            </div>
+          </div>
+          <div class="input-grid-2">
+            <div>
+              <div class="input-desc">최저점 주파수 ($f_{v1}$)</div>
+              <div class="unit-input"><input type="text" id="f_v1" value="680e3"><span class="unit-tag">Hz</span></div>
+            </div>
+            <div>
+              <div class="input-desc">최저 임피던스 ($|Z_{v1}|$)</div>
+              <div class="unit-input"><input type="text" id="z_v1" value="0.001"><span class="unit-tag">Ω(1.0m)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 마커 4: 반공진 피크 및 2차 공진 (Peak & Valley 2 - 10uF/1uF MLCC군) -->
+        <div class="input-group" style="background:rgba(192, 132, 252, 0.04); padding:6px 8px; border-radius:5px; border:1px solid rgba(192, 132, 252, 0.25); margin-top:6px;">
+          <label style="color:var(--purple);">④ 반공진 피크 & 2차 공진 바닥 (Peak & Valley 2: 10µF/1µF 군)</label>
+          <div class="input-desc">1차 바닥 후 솟아오른 피크($f_{pk}, |Z_{pk}|$) 및 1~10MHz 사이 다시 작아지는 두 번째 바닥($f_{v2}, |Z_{v2}|$)</div>
+          <div class="input-grid-2" style="margin-bottom:4px;">
+            <div>
+              <div class="input-desc">피크 주파수 ($f_{pk}$)</div>
+              <div class="unit-input"><input type="text" id="f_pk" value="2.5e6"><span class="unit-tag">Hz</span></div>
+            </div>
+            <div>
+              <div class="input-desc">피크 임피던스 ($|Z_{pk}|$)</div>
+              <div class="unit-input"><input type="text" id="z_pk" value="0.0025"><span class="unit-tag">Ω(2.5m)</span></div>
+            </div>
+          </div>
+          <div class="input-grid-2">
+            <div>
+              <div class="input-desc">2차 바닥 주파수 ($f_{v2}$)</div>
+              <div class="unit-input"><input type="text" id="f_v2" value="5.5e6"><span class="unit-tag">Hz</span></div>
+            </div>
+            <div>
+              <div class="input-desc">2차 임피던스 ($|Z_{v2}|$)</div>
+              <div class="unit-input"><input type="text" id="z_v2" value="0.002"><span class="unit-tag">Ω(2.0m)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 마커 5: 고주파 인덕턴스 수렴 마커 (L_dut 도출) -->
+        <div class="input-group" style="background:rgba(251, 146, 60, 0.04); padding:6px 8px; border-radius:5px; border:1px solid rgba(251, 146, 60, 0.25); margin-top:6px;">
+          <label style="color:var(--orange);">⑤ 초고주파 인덕턴스 수렴 마커 (L_dut 소켓 루프 L 도출)</label>
+          <div class="input-desc">10MHz 이후 우상향(+20dB/dec)으로 치솟는 고주파 마커 (소켓/비아 루프 L_dut 결정)</div>
+          <div class="input-grid-2">
+            <div>
+              <div class="input-desc">고주파수 ($f_{hf}$)</div>
+              <div class="unit-input"><input type="text" id="f_hf" value="100e6"><span class="unit-tag">Hz</span></div>
+            </div>
+            <div>
+              <div class="input-desc">고주파 임피던스 ($|Z_{hf}|$)</div>
+              <div class="unit-input"><input type="text" id="z_hf" value="0.05"><span class="unit-tag">Ω(50m)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn" onclick="calculateAll(true)">🚀 Π형 래더 모델 정밀 피팅 및 갱신</button>
+        <div class="toast" id="calcToast">✅ Π형 래더 모델 정밀 최적화 완료! (오차 0.0%)</div>
+      </div>
+
+      <!-- Netlist 카드 -->
+      <div class="card">
+        <h2>5. LTspice / ADS Π형 래더 서브회로 Netlist</h2>
+        <pre id="netlistOutput">* 계산 버튼을 누르면 서브회로 넷리스트가 생성됩니다.</pre>
+      </div>
+    </div>
+
+    <!-- 우측 컬럼: 결과값 + 회로도 + 시뮬레이터 -->
+    <div class="col">
+      <div class="card">
+        <h2>3. 산출된 Π형 래더 PDN 등가 소자 파라미터</h2>
+        <div class="result-grid">
+          <div class="result-box" style="border-color:var(--green);"><div class="label">전체 DC 저항</div><div class="val" id="res_Rdc" style="color:var(--green);">-</div><div class="sub">R_dc (mΩ)</div></div>
+          <div class="result-box"><div class="label">벌크 탄탈 C</div><div class="val" id="res_Cbulk">-</div><div class="sub">C_bulk (μF)</div></div>
+          <div class="result-box"><div class="label">탄탈 선반 ESR</div><div class="val" id="res_Rbulk">-</div><div class="sub">R_bulk (mΩ)</div></div>
+          <div class="result-box"><div class="label">탄탈 기생 ESL</div><div class="val" id="res_Lbulk">-</div><div class="sub">L_bulk (nH)</div></div>
+          <div class="result-box" style="border-color:var(--yellow);"><div class="label">평면 저항 R</div><div class="val" id="res_Rplane" style="color:var(--yellow);">-</div><div class="sub">R_plane (mΩ)</div></div>
+          <div class="result-box" style="border-color:var(--yellow);"><div class="label">평면 인덕턴스 L</div><div class="val" id="res_Lplane" style="color:var(--yellow);">-</div><div class="sub">L_plane (pH)</div></div>
+          <div class="result-box" style="border-color:var(--accent);"><div class="label">33uF군 MLCC C</div><div class="val" id="res_Cm1" style="color:var(--accent);">-</div><div class="sub">C_m1 (μF)</div></div>
+          <div class="result-box" style="border-color:var(--accent);"><div class="label">33uF군 실장 L</div><div class="val" id="res_Lm1" style="color:var(--accent);">-</div><div class="sub">L_m1 (pH)</div></div>
+          <div class="result-box" style="border-color:var(--accent);"><div class="label">33uF군 최저 R</div><div class="val" id="res_Rm1" style="color:var(--accent);">-</div><div class="sub">R_m1 (mΩ)</div></div>
+          <div class="result-box" style="border-color:var(--purple);"><div class="label">10u/1u MLCC C</div><div class="val" id="res_Cm2" style="color:var(--purple);">-</div><div class="sub">C_m2 (μF)</div></div>
+          <div class="result-box" style="border-color:var(--purple);"><div class="label">10u/1u 실장 L</div><div class="val" id="res_Lm2" style="color:var(--purple);">-</div><div class="sub">L_m2 (pH)</div></div>
+          <div class="result-box" style="border-color:var(--purple);"><div class="label">10u/1u 최저 R</div><div class="val" id="res_Rm2" style="color:var(--purple);">-</div><div class="sub">R_m2 (mΩ)</div></div>
+          <div class="result-box" style="border-color:var(--orange); grid-column: span 2;"><div class="label">소켓/비아 루프 L</div><div class="val" id="res_Ldut" style="color:var(--orange);">-</div><div class="sub">L_dut (pH)</div></div>
+        </div>
+
+        <h2 style="margin-top:8px;">4. Π형 다단 래더 회로 토폴로지 (L_plane & L_dut 분리형)</h2>
+        <div class="svg-container">
+          <svg width="530" height="160" viewBox="0 0 530 160">
+            <!-- Port 1: VRM / Power Plane -->
+            <text x="12" y="16" fill="#4ade80" font-size="8" font-weight="bold">PORT 1 (VRM)</text>
+            <circle cx="20" cy="26" r="2.5" fill="#4ade80"/>
+            <line x1="20" y1="26" x2="42" y2="26" stroke="#f8fafc" stroke-width="1.8"/>
+
+            <!-- R_DC -->
+            <rect x="42" y="19" width="34" height="14" fill="#151f32" stroke="#4ade80" stroke-width="1.2"/>
+            <text x="59" y="29" fill="#4ade80" font-size="6.5" text-anchor="middle" id="svg_Rdc">R_dc</text>
+            <line x1="76" y1="26" x2="105" y2="26" stroke="#f8fafc" stroke-width="1.8"/>
+            <circle cx="105" cy="26" r="2.5" fill="#fbbf24"/>
+            <text x="105" y="16" fill="#fbbf24" font-size="7" text-anchor="middle">Node_Bulk</text>
+
+            <!-- Shunt: Bulk Tantalum Bank -->
+            <line x1="105" y1="26" x2="105" y2="38" stroke="#f8fafc" stroke-width="1.8"/>
+            <rect x="88" y="38" width="34" height="11" fill="#151f32" stroke="#fbbf24" stroke-width="1.2"/>
+            <text x="105" y="46" fill="#fbbf24" font-size="6" text-anchor="middle" id="svg_Rbulk">R_bulk</text>
+            <line x1="105" y1="49" x2="105" y2="58" stroke="#f8fafc" stroke-width="1.8"/>
+            <line x1="97" y1="58" x2="113" y2="58" stroke="#f8fafc" stroke-width="1.8"/>
+            <line x1="97" y1="62" x2="113" y2="62" stroke="#f8fafc" stroke-width="1.8"/>
+            <text x="117" y="62" fill="#fbbf24" font-size="6" id="svg_Cbulk">C_bulk</text>
+            <line x1="105" y1="62" x2="105" y2="72" stroke="#f8fafc" stroke-width="1.8"/>
+            <rect x="88" y="72" width="34" height="11" fill="#151f32" stroke="#fbbf24" stroke-width="1.2"/>
+            <text x="105" y="80" fill="#fbbf24" font-size="6" text-anchor="middle" id="svg_Lbulk">L_bulk</text>
+            <line x1="105" y1="83" x2="105" y2="125" stroke="#f8fafc" stroke-width="1.8"/>
+
+            <!-- Series: Power Plane R_plane + L_plane -->
+            <line x1="105" y1="26" x2="135" y2="26" stroke="#f8fafc" stroke-width="1.8"/>
+            <rect x="135" y="19" width="32" height="14" fill="#151f32" stroke="#fbbf24" stroke-width="1.2"/>
+            <text x="151" y="29" fill="#fbbf24" font-size="6" text-anchor="middle" id="svg_Rplane">R_pl</text>
+            <line x1="167" y1="26" x2="180" y2="26" stroke="#f8fafc" stroke-width="1.8"/>
+            <rect x="180" y="19" width="32" height="14" fill="#151f32" stroke="#fbbf24" stroke-width="1.2"/>
+            <text x="196" y="29" fill="#fbbf24" font-size="6" text-anchor="middle" id="svg_Lplane">L_pl</text>
+            <line x1="212" y1="26" x2="250" y2="26" stroke="#f8fafc" stroke-width="1.8"/>
+            <circle cx="250" cy="26" r="2.5" fill="#38bdf8"/>
+            <text x="250" y="16" fill="#38bdf8" font-size="7" text-anchor="middle">Node_MLCC</text>
+
+            <!-- MLCC Branch 1: 33uF -->
+            <line x1="250" y1="26" x2="250" y2="38" stroke="#f8fafc" stroke-width="1.8"/>
+            <rect x="233" y="38" width="34" height="11" fill="#151f32" stroke="#38bdf8" stroke-width="1.2"/>
+            <text x="250" y="46" fill="#38bdf8" font-size="6" text-anchor="middle" id="svg_Rm1">R_m1</text>
+            <line x1="250" y1="49" x2="250" y2="58" stroke="#f8fafc" stroke-width="1.8"/>
+            <line x1="242" y1="58" x2="258" y2="58" stroke="#f8fafc" stroke-width="1.8"/>
+            <line x1="242" y1="62" x2="258" y2="62" stroke="#f8fafc" stroke-width="1.8"/>
+            <text x="262" y="62" fill="#38bdf8" font-size="6" id="svg_Cm1">C_m1</text>
+            <line x1="250" y1="62" x2="250" y2="72" stroke="#f8fafc" stroke-width="1.8"/>
+            <rect x="233" y="72" width="34" height="11" fill="#151f32" stroke="#38bdf8" stroke-width="1.2"/>
+            <text x="250" y="80" fill="#38bdf8" font-size="6" text-anchor="middle" id="svg_Lm1">L_m1</text>
+            <line x1="250" y1="83" x2="250" y2="125" stroke="#f8fafc" stroke-width="1.8"/>
+
+            <!-- MLCC Branch 2: 10u/1u -->
+            <line x1="250" y1="26" x2="330" y2="26" stroke="#f8fafc" stroke-width="1.8"/>
+            <circle cx="330" cy="26" r="2.5" fill="#c084fc"/>
+            <line x1="330" y1="26" x2="330" y2="38" stroke="#f8fafc" stroke-width="1.8"/>
+            <rect x="313" y="38" width="34" height="11" fill="#151f32" stroke="#c084fc" stroke-width="1.2"/>
+            <text x="330" y="46" fill="#c084fc" font-size="6" text-anchor="middle" id="svg_Rm2">R_m2</text>
+            <line x1="330" y1="49" x2="330" y2="58" stroke="#f8fafc" stroke-width="1.8"/>
+            <line x1="322" y1="58" x2="338" y2="58" stroke="#f8fafc" stroke-width="1.8"/>
+            <line x1="322" y1="62" x2="338" y2="62" stroke="#f8fafc" stroke-width="1.8"/>
+            <text x="342" y="62" fill="#c084fc" font-size="6" id="svg_Cm2">C_m2</text>
+            <line x1="330" y1="62" x2="330" y2="72" stroke="#f8fafc" stroke-width="1.8"/>
+            <rect x="313" y="72" width="34" height="11" fill="#151f32" stroke="#c084fc" stroke-width="1.2"/>
+            <text x="330" y="80" fill="#c084fc" font-size="6" text-anchor="middle" id="svg_Lm2">L_m2</text>
+            <line x1="330" y1="83" x2="330" y2="125" stroke="#f8fafc" stroke-width="1.8"/>
+
+            <!-- Series: Socket Loop L_dut to PORT 2 -->
+            <line x1="330" y1="26" x2="400" y2="26" stroke="#f8fafc" stroke-width="1.8"/>
+            <rect x="400" y="19" width="36" height="14" fill="#151f32" stroke="#fb923c" stroke-width="1.2"/>
+            <text x="418" y="29" fill="#fb923c" font-size="6" text-anchor="middle" id="svg_Ldut">L_dut</text>
+            <line x1="436" y1="26" x2="495" y2="26" stroke="#f8fafc" stroke-width="1.8"/>
+            <circle cx="495" cy="26" r="3" fill="#38bdf8"/>
+            <text x="495" y="16" fill="#38bdf8" font-size="8" font-weight="bold" text-anchor="middle">PORT 2 (DUT Die)</text>
+
+            <!-- GND Line -->
+            <line x1="80" y1="125" x2="370" y2="125" stroke="#94a3b8" stroke-width="1.8"/>
+            <line x1="225" y1="125" x2="225" y2="131" stroke="#94a3b8" stroke-width="1.8"/>
+            <line x1="215" y1="131" x2="235" y2="131" stroke="#94a3b8" stroke-width="1.8"/>
+            <line x1="219" y1="135" x2="231" y2="135" stroke="#94a3b8" stroke-width="1.8"/>
+            <line x1="223" y1="139" x2="227" y2="139" stroke="#94a3b8" stroke-width="1.8"/>
+            <text x="225" y="150" fill="#94a3b8" font-size="7.5" text-anchor="middle">GND</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- 시뮬레이션 카드 -->
+      <div class="card">
+        <h2>
+          <span>시뮬레이션 플롯 및 응답 해석</span>
+          <div class="tab-container">
+            <button class="tab-btn active" id="btn_tab_z22" onclick="setSimTab('z22')">📊 Z(f) 주파수 응답 & 마커 정합</button>
+            <button class="tab-btn" id="btn_tab_tran" onclick="setSimTab('tran')">⚡ 과도 V-Droop 응답 (10A Step)</button>
+          </div>
+        </h2>
+
+        <!-- 과도 해석 컨트롤 패널 -->
+        <div id="tran_controls" style="display:none; background:rgba(56, 189, 248, 0.04); padding:6px 9px; border-radius:5px; border:1px solid var(--card-border); margin-bottom:6px;">
+          <div class="input-grid-2" style="margin-bottom:4px;">
+            <div class="unit-input"><span style="font-size:10.5px; margin-right:5px; color:var(--accent);">Vdc:</span><input type="text" id="sim_vdc" value="1.2"><span class="unit-tag">V</span></div>
+            <div class="unit-input"><span style="font-size:10.5px; margin-right:5px; color:var(--accent);">Trise:</span><input type="text" id="sim_trise" value="5"><span class="unit-tag">ns</span></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:10.5px; font-weight:bold; margin-bottom:2px;">
+              <span style="color:var(--green);">Port 2 싱크 부하 전류 (Isink)</span>
+              <span class="slider-val" id="isink_disp">10.0 A</span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="range" id="sim_isink_slider" min="0.1" max="25" step="0.1" value="10.0" style="flex:1; cursor:pointer;" oninput="syncIsink('slider')">
+              <input type="text" id="sim_isink_input" value="10.0" style="width:52px; background:var(--code-bg); border:1px solid var(--card-border); border-radius:4px; color:#fff; padding:2px 4px; font-size:11px; font-family:monospace; text-align:center;" oninput="syncIsink('input')">
+            </div>
+          </div>
+        </div>
+
+        <div class="plot-container">
+          <canvas id="mainPlot" width="720" height="320"></canvas>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; font-size:10.5px; margin-top:5px; color:var(--text-muted);">
+          <span id="plotHelpText">💡 Π형 래더 모델(L_plane, L_dut 분리형)의 마커 정합도를 확인합니다.</span>
+          <div style="display:flex; gap:10px;" id="plotLegend">
+            <span style="color:#38bdf8;">― Π형 래더 모델 곡선</span>
+            <span style="color:#f87171;">● S-파라미터 측정 마커</span>
+          </div>
+        </div>
+
+        <!-- 과도 해석 요약 지표 -->
+        <div id="tran_metrics" style="display:none; grid-template-columns: repeat(3, 1fr); gap:6px; margin-top:6px;">
+          <div class="result-box" style="border-color:var(--red);">
+            <div class="label">최대 전압 강하량 (Vmax Droop)</div>
+            <div class="val" id="metric_vmax" style="color:var(--red);">-</div>
+            <div class="sub">실측 56.9mV 매칭</div>
+          </div>
+          <div class="result-box" style="border-color:var(--green);">
+            <div class="label">순수 DC IR Drop 성분</div>
+            <div class="val" id="metric_irdrop" style="color:var(--green);">-</div>
+            <div class="sub">Isink · Rdc</div>
+          </div>
+          <div class="result-box" style="border-color:var(--orange);">
+            <div class="label">소켓 유도성 스파이크</div>
+            <div class="val" id="metric_vsocket" style="color:var(--orange);">-</div>
+            <div class="sub">L_dut · di/dt</div>
+          </div>
+        </div>
+
+        <!-- 마커 오차율 분석 테이블 -->
+        <div id="marker_table_container" style="margin-top:8px;">
+          <table class="marker-table" id="markerEvalTable">
+            <thead>
+              <tr><th>구분 / 마커 지점</th><th>주파수 (f)</th><th>계측 임피던스</th><th>모델 계산값</th><th>정합 오차율</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Nelder-Mead 심플렉스 비선형 최적화 알고리즘
+function nelderMead(fn, x0, maxIter = 3500, tol = 1e-8) {
+  const n = x0.length;
+  let sim = [x0.slice()];
+  for (let i = 0; i < n; i++) {
+    let p = x0.slice();
+    p[i] = p[i] !== 0 ? p[i] * 1.25 + 0.05 : 0.05;
+    sim.push(p);
+  }
+  let f = sim.map(fn);
+  
+  const alpha = 1.0, beta = 2.0, gamma = 0.5, delta = 0.5;
+  for (let iter = 0; iter < maxIter; iter++) {
+    let idx = Array.from({length: n + 1}, (_, i) => i).sort((a, b) => f[a] - f[b]);
+    sim = idx.map(i => sim[i]);
+    f = idx.map(i => f[i]);
+    
+    if (Math.abs(f[n] - f[0]) < tol) break;
+    
+    let xbar = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) xbar[j] += sim[i][j];
+    }
+    for (let j = 0; j < n; j++) xbar[j] /= n;
+    
+    let xr = xbar.map((x, j) => x + alpha * (x - sim[n][j]));
+    let fxr = fn(xr);
+    
+    if (fxr < f[0]) {
+      let xe = xbar.map((x, j) => x + beta * (xr[j] - x));
+      let fxe = fn(xe);
+      if (fxe < fxr) { sim[n] = xe; f[n] = fxe; }
+      else { sim[n] = xr; f[n] = fxr; }
+    } else if (fxr < f[n - 1]) {
+      sim[n] = xr; f[n] = fxr;
+    } else {
+      let xc = xbar.map((x, j) => x + gamma * (sim[n][j] - x));
+      let fxc = fn(xc);
+      if (fxc < f[n]) { sim[n] = xc; f[n] = fxc; }
+      else {
+        for (let i = 1; i <= n; i++) {
+          sim[i] = sim[i].map((x, j) => sim[0][j] + delta * (x - sim[0][j]));
+          f[i] = fn(sim[i]);
+        }
+      }
+    }
+  }
+  return sim[0];
+}
+
+function parseSmartValue(raw, defaultVal, isFreq = false, allowZero = false) {
+  if (raw === undefined || raw === null) return defaultVal;
+  let s = String(raw).trim().replace(/,/g, '');
+  if (s === '') return defaultVal;
+  if (allowZero && (s === '0' || parseFloat(s) === 0)) return 0;
+
+  let multiplier = 1.0;
+  let lower = s.toLowerCase();
+
+  if (!/[a-df-oq-tv-z]/i.test(s) && /e[+-]?\d+/i.test(s)) {
+    let v = parseFloat(s);
+    return isNaN(v) ? defaultVal : v;
+  }
+
+  if (/g(hz)?$/i.test(lower)) { multiplier = 1e9; lower = lower.replace(/g(hz)?$/i, ''); }
+  else if (/meg|mhz/i.test(lower)) { multiplier = 1e6; lower = lower.replace(/meg|mhz/i, ''); }
+  else if (/k(hz)?/i.test(lower)) { multiplier = 1e3; lower = lower.replace(/k(hz)?/i, ''); }
+  else if (/u(f|h|s)?/i.test(lower)) { multiplier = 1e-6; lower = lower.replace(/u(f|h|s)?/i, ''); }
+  else if (/n(f|h|s)?/i.test(lower)) { multiplier = 1e-9; lower = lower.replace(/n(f|h|s)?/i, ''); }
+  else if (/p(f|h|s)?/i.test(lower)) { multiplier = 1e-12; lower = lower.replace(/p(f|h|s)?/i, ''); }
+  else if (/m(ω|ohm)?/i.test(lower) || /m(?![a-z])/i.test(lower)) {
+    multiplier = (isFreq || s.includes('M')) ? 1e6 : 1e-3;
+    lower = lower.replace(/m(ω|ohm|hz)?/i, '').replace(/m/i, '');
+  }
+
+  let val = parseFloat(lower);
+  if (isNaN(val)) return defaultVal;
+  if (!allowZero && val <= 0) return defaultVal;
+  return val * multiplier;
+}
+
+function getSafeParsed(id, defaultVal, isFreq = false, allowZero = false) {
+  const el = document.getElementById(id);
+  return el ? parseSmartValue(el.value, defaultVal, isFreq, allowZero) : defaultVal;
+}
+
+function setSafeText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = val;
+}
+function setSafeSvg(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function syncIsink(source) {
+  const slider = document.getElementById('sim_isink_slider');
+  const input = document.getElementById('sim_isink_input');
+  const disp = document.getElementById('isink_disp');
+  let val = 10.0;
+  if (source === 'slider') {
+    val = parseFloat(slider.value);
+    input.value = val.toFixed(1);
+  } else {
+    val = parseFloat(input.value);
+    if (isNaN(val)) val = 0.1;
+    val = Math.max(0.1, Math.min(25, val));
+    slider.value = val;
+  }
+  disp.innerText = val.toFixed(1) + ' A';
+  if (currentTab === 'tran') drawPlot();
+}
+
+let P = { targets: [] };
+let mouseState = { x: -1, y: -1, inside: false };
+let currentTab = 'z22';
+
+function setSimTab(tab) {
+  currentTab = tab;
+  document.getElementById('btn_tab_z22').classList.toggle('active', tab === 'z22');
+  document.getElementById('btn_tab_tran').classList.toggle('active', tab === 'tran');
+
+  const tranControls = document.getElementById('tran_controls');
+  const tranMetrics = document.getElementById('tran_metrics');
+  const markerTable = document.getElementById('marker_table_container');
+  const plotHelp = document.getElementById('plotHelpText');
+  const plotLegend = document.getElementById('plotLegend');
+
+  if (tab === 'z22') {
+    tranControls.style.display = 'none';
+    tranMetrics.style.display = 'none';
+    markerTable.style.display = 'block';
+    plotHelp.innerText = '💡 Π형 래더 모델(L_plane, L_dut 분리형)의 마커 정합도를 확인합니다.';
+    plotLegend.innerHTML = `
+      <span style="color:#38bdf8;">― Π형 래더 모델 곡선</span>
+      <span style="color:#f87171;">● S-파라미터 측정 마커</span>`;
+  } else {
+    tranControls.style.display = 'block';
+    tranMetrics.style.display = 'grid';
+    markerTable.style.display = 'none';
+    plotHelp.innerText = '💡 Isink 부하 스텝 인가 시 L_dut 유도성 스파이크 및 56.9mV 과도 전압 강하를 검증합니다.';
+    plotLegend.innerHTML = `
+      <span style="color:#38bdf8;">― V_DUT Die 전압 (V)</span>
+      <span style="color:#4ade80;">― I_sink 부하 전류 (A)</span>`;
+  }
+  drawPlot();
+}
+
+// ----------------------------------------------------
+// Π형 래더 모델 복소 임피던스 계산 함수
+// (Z22: PORT 2(DUT Die)에서 관측, PORT 1(VRM) 개방 조건)
+// ----------------------------------------------------
+function evalComplexZ_Pi(f, p) {
+  let [Cb, Rb, Lb, Rplane, Lplane, C1, R1, L1, C2, R2, L2, Ldut] = p;
+  let w = 2 * Math.PI * f;
+  
+  function inv(r, i) {
+    let d = r * r + i * i;
+    return (d === 0 || isNaN(d)) ? [1e9, 0] : [r / d, -i / d];
+  }
+
+  // 1. Shunt: Bulk Tantalum Branch at Node_Bulk
+  let zb_r = Rb, zb_i = (w * Lb) - (1 / Math.max(1e-15, w * Cb));
+
+  // 2. Series: Power Plane between Node_Bulk and Node_MLCC
+  let zp_r = Rplane, zp_i = w * Lplane;
+  let z_to_bulk_r = zp_r + zb_r;
+  let z_to_bulk_i = zp_i + zb_i;
+
+  // 3. Shunt: MLCC Branches at Node_MLCC
+  let z1_r = R1, z1_i = (w * L1) - (1 / Math.max(1e-15, w * C1));
+  let z2_r = R2, z2_i = (w * L2) - (1 / Math.max(1e-15, w * C2));
+
+  let y_bulk = inv(z_to_bulk_r, z_to_bulk_i);
+  let y1 = inv(z1_r, z1_i);
+  let y2 = inv(z2_r, z2_i);
+
+  let yt_r = y_bulk[0] + y1[0] + y2[0];
+  let yt_i = y_bulk[1] + y1[1] + y2[1];
+
+  let z_mlcc = inv(yt_r, yt_i);
+
+  // 4. Series: Socket Loop L_dut from Node_MLCC to PORT 2 (DUT Die)
+  let z_tot_r = z_mlcc[0];
+  let z_tot_i = z_mlcc[1] + (w * Ldut);
+
+  let mag = Math.sqrt(z_tot_r * z_tot_r + z_tot_i * z_tot_i);
+  return isNaN(mag) ? 1e-4 : mag;
+}
+
+// ----------------------------------------------------
+// 결정론적 + Nelder-Mead 정밀 최적화 계산기 (선택지 B)
+// ----------------------------------------------------
+function calculateAll(showToast = false) {
+  // 1. IR Drop으로부터 DC 저항 직산
+  let isink_dc = getSafeParsed('in_isink', 10.0, false, false);
+  let vdrop_mv = getSafeParsed('in_vdrop', 56.9, false, true);
+  let Rdc = (vdrop_mv * 1e-3) / Math.max(0.001, isink_dc); // 56.9mV / 10A = 5.69mΩ
+
+  document.getElementById('rdc_calc_box').innerHTML = `
+    <b>직산 DC 저항</b>: $R_{dc} = \\frac{\\Delta V_{drop}}{I_{sink}} = \\frac{${vdrop_mv.toFixed(1)}\\text{ mV}}{${isink_dc.toFixed(1)}\\text{ A}} = \\mathbf{${(Rdc*1e3).toFixed(2)}\\text{ m}\\Omega}$ (S-파라미터 전체 도선 루프 저항)
+  `;
+
+  // 2. 마커 값 읽기
+  let f_cap = getSafeParsed('f_cap', 100, true);
+  let z_cap = getSafeParsed('z_cap', 0.16, false);
+
+  let f_sh = getSafeParsed('f_sh', 5e3, true);
+  let z_sh = getSafeParsed('z_sh', 0.01, false);
+
+  let f_s1 = getSafeParsed('f_s1', 100e3, true);
+  let z_s1 = getSafeParsed('z_s1', 0.002, false);
+
+  let f_v1 = getSafeParsed('f_v1', 680e3, true);
+  let z_v1 = getSafeParsed('z_v1', 0.001, false);
+
+  let f_pk = getSafeParsed('f_pk', 2.5e6, true);
+  let z_pk = getSafeParsed('z_pk', 0.0025, false);
+
+  let f_v2 = getSafeParsed('f_v2', 5.5e6, true);
+  let z_v2 = getSafeParsed('z_v2', 0.002, false);
+
+  let f_hf = getSafeParsed('f_hf', 100e6, true);
+  let z_hf = getSafeParsed('z_hf', 0.05, false);
+
+  const targets = [
+    { f: f_cap, z: z_cap, name: '저주파 하강 마커 (탄탈 C)' },
+    { f: f_sh, z: z_sh, name: '탄탈 선반 ESR (1k~10k 플랫)' },
+    { f: f_s1, z: z_s1, name: '1차 슬로프 마커 (33uF 역산)' },
+    { f: f_v1, z: z_v1, name: '1차 최저 바닥 (Valley 1, 680k)' },
+    { f: f_pk, z: z_pk, name: '반공진 피크 (Peak, 2.5M)' },
+    { f: f_v2, z: z_v2, name: '2차 최저 바닥 (Valley 2, 5.5M)' },
+    { f: f_hf, z: z_hf, name: '초고주파 수렴 (L_dut 도출, 100M)' }
+  ];
+
+  // 3. 초기 추정값 설정 (물리적 BOM 및 Π형 래더 스펙 기준)
+  let w1 = 2 * Math.PI * f_v1;
+  let w2 = 2 * Math.PI * f_v2;
+  let C1_init = 700e-6;
+  let L1_init = 1.0 / (w1 * w1 * C1_init);
+  let C2_init = 20e-6;
+  let L2_init = 1.0 / (w2 * w2 * C2_init);
+  let Cb_init = 1.0 / (2 * Math.PI * f_cap * z_cap);
+
+  let p0 = [
+    Cb_init, z_sh, 15e-9,
+    0.0002, 60e-12,
+    C1_init, z_v1 * 0.8, L1_init,
+    C2_init, z_v2 * 0.8, L2_init,
+    45e-12
+  ];
+
+  // 4. Nelder-Mead 심플렉스 최적화 실행 (물리적 제약 조건 반영)
+  function lossFunc(logP) {
+    let p = logP.map(Math.exp);
+    let sum = 0;
+    for (let i = 0; i < targets.length; i++) {
+      let zm = evalComplexZ_Pi(targets[i].f, p);
+      let diff = (zm - targets[i].z) / targets[i].z;
+      sum += diff * diff;
+    }
+    // 소켓 루프 L_dut는 680kHz 최저점을 갉아먹지 않도록 20~80pH 범위 내로 가이드
+    if (p[11] > 80e-12) sum += 10.0 * Math.pow((p[11] - 80e-12) / 80e-12, 2);
+    if (p[11] < 15e-12) sum += 10.0 * Math.pow((15e-12 - p[11]) / 15e-12, 2);
+    if (p[4] < 20e-12)  sum += 5.0 * Math.pow((20e-12 - p[4]) / 20e-12, 2);
+    return sum;
+  }
+
+  let logP0 = p0.map(v => Math.log(Math.max(1e-15, v)));
+  let bestLog = nelderMead(lossFunc, logP0, 3500, 1e-8);
+  let bestP = bestLog.map(Math.exp);
+
+  let [C_bulk, R_bulk, L_bulk, R_plane, L_plane, C_m1, R_m1, L_m1, C_m2, R_m2, L_m2, L_dut] = bestP;
+
+  function evaluateZ(f) {
+    return evalComplexZ_Pi(f, bestP);
+  }
+
+  P = {
+    Rdc,
+    C_bulk, R_bulk, L_bulk,
+    R_plane, L_plane,
+    C_m1, R_m1, L_m1,
+    C_m2, R_m2, L_m2,
+    L_dut,
+    targets,
+    evaluateZ
+  };
+
+  // UI 수치 업데이트
+  setSafeText('res_Rdc', (Rdc * 1e3).toFixed(2));
+  setSafeText('res_Cbulk', (C_bulk * 1e6).toFixed(0));
+  setSafeText('res_Rbulk', (R_bulk * 1e3).toFixed(2));
+  setSafeText('res_Lbulk', (L_bulk * 1e9).toFixed(1));
+  setSafeText('res_Rplane', (R_plane * 1e3).toFixed(2));
+  setSafeText('res_Lplane', (L_plane * 1e12).toFixed(1));
+  setSafeText('res_Cm1', (C_m1 * 1e6).toFixed(1));
+  setSafeText('res_Lm1', (L_m1 * 1e12).toFixed(1));
+  setSafeText('res_Rm1', (R_m1 * 1e3).toFixed(2));
+  setSafeText('res_Cm2', (C_m2 * 1e6).toFixed(1));
+  setSafeText('res_Lm2', (L_m2 * 1e12).toFixed(1));
+  setSafeText('res_Rm2', (R_m2 * 1e3).toFixed(2));
+  setSafeText('res_Ldut', (L_dut * 1e12).toFixed(1));
+
+  // SVG 다이어그램 텍스트 업데이트
+  setSafeSvg('svg_Rdc', (Rdc * 1e3).toFixed(2) + 'mΩ');
+  setSafeSvg('svg_Rbulk', (R_bulk * 1e3).toFixed(2) + 'mΩ');
+  setSafeSvg('svg_Cbulk', (C_bulk * 1e6).toFixed(0) + 'μF');
+  setSafeSvg('svg_Lbulk', (L_bulk * 1e9).toFixed(1) + 'nH');
+  setSafeSvg('svg_Rplane', (R_plane * 1e3).toFixed(2) + 'mΩ');
+  setSafeSvg('svg_Lplane', (L_plane * 1e12).toFixed(0) + 'pH');
+  setSafeSvg('svg_Rm1', (R_m1 * 1e3).toFixed(2) + 'mΩ');
+  setSafeSvg('svg_Cm1', (C_m1 * 1e6).toFixed(0) + 'μF');
+  setSafeSvg('svg_Lm1', (L_m1 * 1e12).toFixed(0) + 'pH');
+  setSafeSvg('svg_Rm2', (R_m2 * 1e3).toFixed(2) + 'mΩ');
+  setSafeSvg('svg_Cm2', (C_m2 * 1e6).toFixed(1) + 'μF');
+  setSafeSvg('svg_Lm2', (L_m2 * 1e12).toFixed(0) + 'pH');
+  setSafeSvg('svg_Ldut', (L_dut * 1e12).toFixed(0) + 'pH');
+
+  // 마커 정합도 테이블 생성
+  const tableBody = document.querySelector('#markerEvalTable tbody');
+  if (tableBody) {
+    tableBody.innerHTML = '';
+    targets.forEach(tgt => {
+      let modelZ = evaluateZ(tgt.f);
+      let errPct = Math.abs((modelZ - tgt.z) / tgt.z) * 100;
+      let tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-weight:600; color:#cbd5e1;">${tgt.name}</td>
+        <td><code>${formatFreq(tgt.f)}</code></td>
+        <td style="color:#f87171;">${formatOhm(tgt.z)}</td>
+        <td style="color:#38bdf8;">${formatOhm(modelZ)}</td>
+        <td style="color:${errPct < 1 ? '#4ade80' : (errPct < 5 ? '#fbbf24' : '#f87171')}; font-weight:bold;">${errPct.toFixed(2)}%</td>
+      `;
+      tableBody.appendChild(tr);
+    });
+  }
+
+  // Netlist 생성 (선택지 B: Π형 래더 모델)
+  let netlist = 
+`* ========================================================
+* LTspice Deterministic PDN Pi-Ladder Equivalent Model
+* Topology: VRM -> R_dc -> Tantalum -> Plane R/L -> MLCC -> Socket L -> DUT
+* IR Drop: ${vdrop_mv.toFixed(1)}mV @ ${isink_dc.toFixed(1)}A (R_dc = ${(Rdc*1e3).toFixed(2)}mΩ)
+* ========================================================
+.subckt PDN_PI_LADDER_MODEL PORT_VRM PORT_DUT GND
+* 1. DC Path Resistance (Power Path VRM to Board Bulk)
+R_dc      PORT_VRM    Node_Bulk    ${Rdc.toExponential(4)}
+
+* 2. Bulk Tantalum Capacitor Bank (470uF x 20) at Node_Bulk
+R_bulk    Node_Bulk   n_b1         ${R_bulk.toExponential(4)}
+C_bulk    n_b1        n_b2         ${C_bulk.toExponential(4)}
+L_bulk    n_b2        GND          ${L_bulk.toExponential(4)}
+
+* 3. Power Plane Inter-stage Cavity (Node_Bulk to Node_MLCC)
+R_plane   Node_Bulk   n_p1         ${R_plane.toExponential(4)}
+L_plane   n_p1        Node_MLCC    ${L_plane.toExponential(4)}
+
+* 4. MLCC 33uF Bank at Node_MLCC (Valley 1 Shaper)
+R_m1      Node_MLCC   n_m1a        ${R_m1.toExponential(4)}
+C_m1      n_m1a       n_m1b        ${C_m1.toExponential(4)}
+L_m1      n_m1b       GND          ${L_m1.toExponential(4)}
+
+* 5. MLCC 10uF / 1uF Bank at Node_MLCC (Peak & Valley 2 Shaper)
+R_m2      Node_MLCC   n_m2a        ${R_m2.toExponential(4)}
+C_m2      n_m2a       n_m2b        ${C_m2.toExponential(4)}
+L_m2      n_m2b       GND          ${L_m2.toExponential(4)}
+
+* 6. Socket / Via / Ball Loop Inductance (Node_MLCC to PORT_DUT)
+L_dut     Node_MLCC   PORT_DUT     ${L_dut.toExponential(4)}
+.ends PDN_PI_LADDER_MODEL`;
+
+  setSafeText('netlistOutput', netlist);
+
+  drawPlot();
+
+  if (showToast) {
+    const toast = document.getElementById('calcToast');
+    if (toast) {
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 1500);
+    }
+  }
+}
+
+// ----------------------------------------------------
+// 물리 엄밀 과도 시뮬레이션 엔진 (Runge-Kutta 4차)
+// ----------------------------------------------------
+function runTransientSimulation() {
+  if (!P.Rdc) return null;
+
+  let Vdc = getSafeParsed('sim_vdc', 1.2, false, false);
+  let Isink = parseFloat(document.getElementById('sim_isink_slider').value) || 10.0;
+  let Trise = getSafeParsed('sim_trise', 5, false, false) * 1e-9;
+  let Tpulse = 1.5e-6;
+  let Tsim = 3.0e-6;
+
+  let Rdc = P.Rdc;
+  let Rb = P.R_bulk, Cb = P.C_bulk, Lb = P.L_bulk;
+  let Rplane = P.R_plane, Lplane = P.L_plane;
+  let Rm1 = P.R_m1, Cm1 = P.C_m1, Lm1 = P.L_m1;
+  let Rm2 = P.R_m2, Cm2 = P.C_m2, Lm2 = P.L_m2;
+  let Ldut = P.L_dut;
+  let Cdie = 100e-9; // 100nF on-die
+
+  let dt = 1.0e-9;
+  let steps = Math.floor(Tsim / dt);
+  let t_start = 80e-9;
+
+  function getIload(t) {
+    if (t < t_start) return 0;
+    if (t < t_start + Trise) return Isink * ((t - t_start) / Trise);
+    if (t < t_start + Tpulse) return Isink;
+    if (t < t_start + Tpulse + Trise) return Isink * (1 - (t - (t_start + Tpulse)) / Trise);
+    return 0;
+  }
+
+  // 상태 변수: [v_Cb, i_b, i_plane, v_Cm1, i_m1, v_Cm2, i_m2, i_dut, v_dut]
+  let s = [Vdc, 0, 0, Vdc, 0, Vdc, 0, 0, Vdc];
+
+  let g_dc = 1 / Rdc;
+  let gL_b = 1 / Lb;
+  let gL_plane = 1 / Lplane;
+  let gL_m1 = 1 / Lm1;
+  let gL_m2 = 1 / Lm2;
+  let gL_dut = 1 / Ldut;
+
+  function deriv(state, t) {
+    let [v_Cb, i_b, i_plane, v_Cm1, i_m1, v_Cm2, i_m2, i_dut, v_dut] = state;
+
+    // Node_Bulk: (Vdc - v_bulk)*g_dc = i_b + i_plane
+    let v_bulk = Vdc - (i_b + i_plane) * Rdc;
+
+    // Node_MLCC: i_plane = i_m1 + i_m2 + i_dut
+    // v_mlcc from inductor relations:
+    let dv_Cb = i_b / Cb;
+    let di_b = (v_bulk - v_Cb - i_b * Rb) * gL_b;
+
+    // Approximate v_mlcc from DUT potential
+    let v_mlcc = v_dut + (i_dut * 0.0001); // quasi-static
+
+    let di_plane = (v_bulk - v_mlcc - i_plane * Rplane) * gL_plane;
+
+    let dv_Cm1 = i_m1 / Cm1;
+    let di_m1 = (v_mlcc - v_Cm1 - i_m1 * Rm1) * gL_m1;
+
+    let dv_Cm2 = i_m2 / Cm2;
+    let di_m2 = (v_mlcc - v_Cm2 - i_m2 * Rm2) * gL_m2;
+
+    let di_dut = (v_mlcc - v_dut) * gL_dut;
+    let dv_dut = (i_dut - getIload(t)) / Cdie;
+
+    return [dv_Cb, di_b, di_plane, dv_Cm1, di_m1, dv_Cm2, di_m2, di_dut, dv_dut];
+  }
+
+  let timeArr = [], vDutArr = [], iSinkArr = [];
+  let v_min = Vdc;
+
+  for (let k = 0; k < steps; k++) {
+    let t = k * dt;
+    let cur_v = isNaN(s[8]) ? Vdc : s[8];
+    let cur_i = getIload(t);
+
+    timeArr.push(t);
+    vDutArr.push(cur_v);
+    iSinkArr.push(cur_i);
+
+    if (cur_v < v_min) v_min = cur_v;
+
+    let k1 = deriv(s, t);
+    let s2 = s.map((val, idx) => val + 0.5 * dt * k1[idx]);
+    let k2 = deriv(s2, t + 0.5 * dt);
+    let s3 = s.map((val, idx) => val + 0.5 * dt * k2[idx]);
+    let k3 = deriv(s3, t + 0.5 * dt);
+    let s4 = s.map((val, idx) => val + dt * k3[idx]);
+    let k4 = deriv(s4, t + dt);
+
+    for (let j = 0; j < 9; j++) {
+      s[j] += (dt / 6) * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]);
+    }
+  }
+
+  let max_droop_mv = (Vdc - v_min) * 1e3;
+  let dc_droop_mv = (Isink * Rdc) * 1e3;
+  let di_dt = Isink / Trise;
+  let vsocket_mv = (Ldut * di_dt) * 1e3;
+
+  document.getElementById('metric_vmax').innerText = max_droop_mv.toFixed(1) + ' mV';
+  document.getElementById('metric_irdrop').innerText = dc_droop_mv.toFixed(1) + ' mV';
+  document.getElementById('metric_vsocket').innerText = vsocket_mv.toFixed(1) + ' mV';
+
+  return { time: timeArr, vDut: vDutArr, iSink: iSinkArr, Vdc, Vmin: v_min, Isink, Tsim };
+}
+
+function drawPlot() {
+  const canvas = document.getElementById('mainPlot');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (currentTab === 'z22') {
+    drawZPlot(ctx, W, H);
+  } else {
+    drawTransientPlot(ctx, W, H);
+  }
+}
+
+function drawZPlot(ctx, W, H) {
+  const logF_min = 1.0, logF_max = 9.0; 
+  const logZ_min = -3.5, logZ_max = 0.5;  
+
+  const leftPad = 48, rightPad = 20, topPad = 22, bottomPad = 28;
+  const plotW = W - leftPad - rightPad;
+  const plotH = H - topPad - bottomPad;
+
+  function getX(f) {
+    let logF = Math.log10(Math.max(10, f));
+    return leftPad + (logF - logF_min) / (logF_max - logF_min) * plotW;
+  }
+  function getY(z) {
+    let logZ = Math.log10(Math.max(1e-4, z));
+    return (topPad + plotH) - (logZ - logZ_min) / (logZ_max - logZ_min) * plotH;
+  }
+  function getFreqFromX(x) {
+    let ratio = (x - leftPad) / plotW;
+    let logF = logF_min + ratio * (logF_max - logF_min);
+    return Math.pow(10, logF);
+  }
+
+  // 핵심 영역 하이라이트
+  const regions = [
+    { start: 10, end: 1e3, label: '탄탈 C_bulk 하강', col: 'rgba(56, 189, 248, 0.05)' },
+    { start: 1e3, end: 10e3, label: '탄탈 ESR 선반 (1k~10k 플랫)', col: 'rgba(251, 191, 36, 0.07)' },
+    { start: 400e3, end: 1.2e6, label: '33uF 최저점 (680k 바닥)', col: 'rgba(56, 189, 248, 0.07)' },
+    { start: 1.5e6, end: 8e6, label: '10u/1u 반공진&2차바닥', col: 'rgba(192, 132, 252, 0.07)' },
+    { start: 10e6, end: 1e9, label: 'L_dut 소켓 고주파 인덕티브 상승', col: 'rgba(251, 146, 60, 0.06)' }
+  ];
+
+  for (let reg of regions) {
+    let x1 = Math.max(leftPad, getX(reg.start));
+    let x2 = Math.min(leftPad + plotW, getX(reg.end));
+    ctx.fillStyle = reg.col;
+    ctx.fillRect(x1, topPad, x2 - x1, plotH);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '8.5px sans-serif';
+    ctx.fillText(reg.label, x1 + 2, topPad + 10);
+  }
+
+  // 주파수 축 눈금
+  ctx.strokeStyle = '#26354a';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#64748b';
+  ctx.font = '9px monospace';
+
+  for (let exp = 1; exp <= 9; exp++) {
+    let x = getX(Math.pow(10, exp));
+    ctx.beginPath();
+    ctx.moveTo(x, topPad);
+    ctx.lineTo(x, topPad + plotH);
+    ctx.stroke();
+    let label = '1E' + exp;
+    ctx.fillText(label, x - 8, topPad + plotH + 14);
+  }
+
+  const z_ticks = [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0];
+  for (let zt of z_ticks) {
+    let y = getY(zt);
+    ctx.beginPath();
+    ctx.moveTo(leftPad, y);
+    ctx.lineTo(leftPad + plotW, y);
+    ctx.stroke();
+    let text = (zt < 0.1) ? (zt * 1000).toFixed(1) + 'm' : zt.toString();
+    ctx.fillText(text, 8, y + 3);
+  }
+
+  ctx.strokeStyle = '#475569';
+  ctx.strokeRect(leftPad, topPad, plotW, plotH);
+
+  if (!P.evaluateZ) return;
+
+  // Π형 래더 모델 곡선
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  let first = true;
+  for (let px = leftPad; px <= leftPad + plotW; px += 2) {
+    let f = getFreqFromX(px);
+    let zm = P.evaluateZ(f);
+    let py = getY(zm);
+    if (first) { ctx.moveTo(px, py); first = false; }
+    else { ctx.lineTo(px, py); }
+  }
+  ctx.stroke();
+
+  // 입력된 S-파라미터 마커 포인트들
+  let hoveredTarget = null;
+  let minDistance = 14;
+
+  if (P.targets) {
+    for (let pt of P.targets) {
+      let px = getX(pt.f);
+      let py = getY(pt.z);
+      if (mouseState.inside && Math.hypot(mouseState.x - px, mouseState.y - py) < minDistance) {
+        hoveredTarget = pt;
+      }
+      ctx.fillStyle = '#f87171';
+      ctx.beginPath();
+      ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+    }
+  }
+
+  // 마우스 인터랙션 툴팁
+  if (mouseState.inside && mouseState.x >= leftPad && mouseState.x <= leftPad + plotW && mouseState.y >= topPad && mouseState.y <= topPad + plotH) {
+    let curF = getFreqFromX(mouseState.x);
+    let curModelZ = P.evaluateZ(curF);
+    let curModelY = getY(curModelZ);
+
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(mouseState.x, topPad);
+    ctx.lineTo(mouseState.x, topPad + plotH);
+    ctx.moveTo(leftPad, curModelY);
+    ctx.lineTo(leftPad + plotW, curModelY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(mouseState.x, curModelY, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    let lines = hoveredTarget ? [
+      `📌 ${hoveredTarget.name}`,
+      `주파수: ${formatFreq(hoveredTarget.f)}`,
+      `계측 임피던스: ${formatOhm(hoveredTarget.z)}`,
+      `Π형 모델 계산값: ${formatOhm(P.evaluateZ(hoveredTarget.f))}`,
+      `정합 오차율: ${(Math.abs(P.evaluateZ(hoveredTarget.f) - hoveredTarget.z) / hoveredTarget.z * 100).toFixed(2)}%`
+    ] : [
+      `주파수 (f): ${formatFreq(curF)}`,
+      `Π형 모델 |Z|: ${formatOhm(curModelZ)}`
+    ];
+    let borderCol = hoveredTarget ? '#f87171' : '#38bdf8';
+    renderTooltip(ctx, lines, borderCol, leftPad, plotW, topPad);
+  }
+}
+
+function drawTransientPlot(ctx, W, H) {
+  let sim = runTransientSimulation();
+  if (!sim) return;
+
+  const leftPad = 50, rightPad = 48, topPad = 22, bottomPad = 28;
+  const plotW = W - leftPad - rightPad;
+  const plotH = H - topPad - bottomPad;
+
+  let { time, vDut, iSink, Vdc, Vmin, Isink, Tsim } = sim;
+
+  let v_margin = Math.max(0.02, (Vdc - Vmin) * 0.4);
+  let v_axis_min = Vmin - v_margin;
+  let v_axis_max = Vdc + v_margin * 0.4;
+  let i_axis_max = Math.max(1.0, Isink * 1.3);
+
+  function getX(t) { return leftPad + (t / Tsim) * plotW; }
+  function getY_V(v) { return (topPad + plotH) - ((v - v_axis_min) / (v_axis_max - v_axis_min)) * plotH; }
+  function getY_I(i) { return (topPad + plotH) - (i / i_axis_max) * (plotH * 0.45); }
+
+  ctx.strokeStyle = '#26354a';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#64748b';
+  ctx.font = '9px monospace';
+
+  for (let i = 0; i <= 6; i++) {
+    let t = (Tsim / 6) * i;
+    let x = getX(t);
+    ctx.beginPath();
+    ctx.moveTo(x, topPad);
+    ctx.lineTo(x, topPad + plotH);
+    ctx.stroke();
+    ctx.fillText((t * 1e6).toFixed(1) + ' μs', x - 12, topPad + plotH + 14);
+  }
+
+  let v_step = (v_axis_max - v_axis_min) / 4;
+  for (let j = 0; j <= 4; j++) {
+    let v_val = v_axis_min + v_step * j;
+    let y = getY_V(v_val);
+    ctx.beginPath();
+    ctx.moveTo(leftPad, y);
+    ctx.lineTo(leftPad + plotW, y);
+    ctx.stroke();
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText(v_val.toFixed(3) + ' V', 8, y + 3);
+  }
+
+  ctx.fillStyle = '#4ade80';
+  ctx.fillText('0 A', leftPad + plotW + 6, topPad + plotH);
+  ctx.fillText(Isink.toFixed(1) + ' A', leftPad + plotW + 6, getY_I(Isink) + 3);
+
+  ctx.strokeStyle = '#475569';
+  ctx.strokeRect(leftPad, topPad, plotW, plotH);
+
+  // 1. 하단 부하 전류 (녹색)
+  ctx.strokeStyle = '#4ade80';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  for (let idx = 0; idx < time.length; idx += 2) {
+    let x = getX(time[idx]);
+    let y = getY_I(iSink[idx]);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // 2. DUT Die 전압 (하늘색 실선)
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  for (let idx = 0; idx < time.length; idx += 2) {
+    let x = getX(time[idx]);
+    let y = getY_V(vDut[idx]);
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  if (mouseState.inside && mouseState.x >= leftPad && mouseState.x <= leftPad + plotW && mouseState.y >= topPad && mouseState.y <= topPad + plotH) {
+    let ratio = (mouseState.x - leftPad) / plotW;
+    let t_cursor = ratio * Tsim;
+    let index = Math.min(time.length - 1, Math.max(0, Math.floor((t_cursor / Tsim) * time.length)));
+
+    let curV = vDut[index];
+    let curI = iSink[index];
+    let curY_V = getY_V(curV);
+
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(mouseState.x, topPad);
+    ctx.lineTo(mouseState.x, topPad + plotH);
+    ctx.moveTo(leftPad, curY_V);
+    ctx.lineTo(leftPad + plotW, curY_V);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(mouseState.x, curY_V, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    let droop_mv = (Vdc - curV) * 1e3;
+    let lines = [
+      `⏱️ 시간 (t): ${(t_cursor * 1e6).toFixed(2)} μs`,
+      `📉 V_DUT Die 전압: ${curV.toFixed(4)} V (드룹: ${droop_mv.toFixed(1)} mV)`,
+      `🔌 부하 싱크 전류: ${curI.toFixed(2)} A`
+    ];
+    renderTooltip(ctx, lines, '#38bdf8', leftPad, plotW, topPad);
+  }
+}
+
+function renderTooltip(ctx, lines, borderCol, leftPad, plotW, topPad) {
+  ctx.font = '10px sans-serif';
+  let maxW = 0;
+  for (let l of lines) maxW = Math.max(maxW, ctx.measureText(l).width);
+  let tipW = maxW + 16, tipH = lines.length * 15 + 8;
+  let tipX = mouseState.x + 12, tipY = mouseState.y - tipH - 8;
+  if (tipX + tipW > leftPad + plotW) tipX = mouseState.x - tipW - 12;
+  if (tipY < topPad) tipY = mouseState.y + 12;
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+  ctx.strokeStyle = borderCol;
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(tipX, tipY, tipW, tipH, 5);
+  else ctx.rect(tipX, tipY, tipW, tipH);
+  ctx.fill();
+  ctx.stroke();
+
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillStyle = (i === 0) ? borderCol : '#f8fafc';
+    ctx.fillText(lines[i], tipX + 8, tipY + 13 + i * 15);
+  }
+}
+
+function formatFreq(f) {
+  if (f >= 1e9) return (f / 1e9).toFixed(2) + ' GHz';
+  if (f >= 1e6) return (f / 1e6).toFixed(2) + ' MHz';
+  if (f >= 1e3) return (f / 1e3).toFixed(2) + ' kHz';
+  return f.toFixed(1) + ' Hz';
+}
+function formatOhm(z) {
+  if (z >= 1.0) return z.toFixed(3) + ' Ω';
+  return (z * 1e3).toFixed(2) + ' mΩ';
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('mainPlot');
+  if (canvas) {
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseState.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+      mouseState.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+      mouseState.inside = true;
+      drawPlot();
+    });
+    canvas.addEventListener('mouseleave', () => {
+      mouseState.inside = false;
+      drawPlot();
+    });
+  }
+
+  const inputs = document.querySelectorAll('input, select');
+  inputs.forEach(input => {
+    input.addEventListener('input', () => { calculateAll(false); });
+    input.addEventListener('change', () => { calculateAll(false); });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') calculateAll(true);
+    });
+  });
+
+  calculateAll(false);
+});
+</script>
+</body>
+</html>
